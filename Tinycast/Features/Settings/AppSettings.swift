@@ -201,9 +201,19 @@ final class AppSettings {
         didSet { defaults.set(calcNumberStyle.rawValue, forKey: Key.calcNumberStyle.rawValue) }
     }
 
-    /// Scales the palette and its floating siblings only. Read through `InterfaceSize.metrics`.
+    /// Scales the palette and its floating siblings only. Read through `metrics`.
     var interfaceSize: InterfaceSize {
         didSet { defaults.set(interfaceSize.rawValue, forKey: Key.interfaceSize.rawValue) }
+    }
+
+    /// Which dress the palette wears: Tinycast's scrimmed panel, or the system launcher's glass.
+    var paletteStyle: PaletteStyle {
+        didSet { defaults.set(paletteStyle.rawValue, forKey: Key.paletteStyle.rawValue) }
+    }
+
+    /// The one place size and dress meet, so no surface can read half of the palette's geometry.
+    var metrics: InterfaceMetrics {
+        InterfaceMetrics(scale: interfaceSize.scale, style: paletteStyle)
     }
 
     var paletteTransparency: Int {
@@ -574,6 +584,9 @@ final class AppSettings {
         interfaceSize =
             defaults.string(forKey: Key.interfaceSize.rawValue).flatMap(InterfaceSize.init)
             ?? .standard
+        paletteStyle =
+            defaults.string(forKey: Key.paletteStyle.rawValue).flatMap(PaletteStyle.init)
+            ?? .tinycast
         paletteTransparency = max(-100, min(100, defaults.integer(forKey: Key.paletteTransparency.rawValue)))
         compactMode = defaults.bool(forKey: Key.compactMode.rawValue)
         // Defaults to true, so absence must be distinguished from a stored `false`.

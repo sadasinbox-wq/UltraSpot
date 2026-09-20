@@ -27,7 +27,9 @@ Five load-bearing ideas, in priority order:
 2. **One alpha ramp, never grays.** Ink at fixed stops — white over the dark surface, black over the light one.
 3. **Floating bars, not chrome.** Header/footer are transparent overlays; the list fills the whole panel.
 4. **Edges dissolve, they don't clip.** Scroll-driven mask, no separators between list and bars.
-5. **Glass only on floating controls.** The main surface is never glass; pills/menus/circles are.
+5. **Glass only on floating controls — in the Tinycast dress.** Its main surface is never glass;
+   pills/menus/circles are. The **Spotlight** dress is the one surface that trades that rule for the
+   system launcher's single glass panel; see "Launcher style" below.
 
 ---
 
@@ -41,7 +43,7 @@ These are the things that quietly break the look if changed. Preserve them unles
 - **Three things stay fixed in both appearances, on purpose.** The `EdgeDissolve`/`OverflowFade` gradients are **mask luminance, not color** — inverting them breaks the dissolve everywhere. `ExtensionTintColors` and a tinted `IconCache` tile keep white ink, because a saturated tile carries its own contrast. And `IconCache` cannot use a dynamic `NSColor` at all: it rasterizes off-main, so the surface is carried explicitly and is part of the cache key.
 - **An icon is drawn for a surface *and* a system icon style, and both move under you.** macOS restyles the icons `NSWorkspace` hands out when System Settings → Appearance → **Icon & widget style** changes, so `IconStyleMonitor` and Tinycast's own appearance both call `IconCache.invalidateStyled()`. **The monitor may not invalidate on the notification itself.** AppKit posts `NSWorkspaceIconAppearanceConfigurationDidChange` before IconServices has swapped what `NSWorkspace` vends — measured at 25–120ms behind, jittering run to run — and the images it hands back are live objects macOS restyles in place, so flattening one on the signal freezes the *outgoing* style into a bitmap nothing ever invalidates again. `IconStyleMonitor` therefore polls `IconCache.styleFingerprint()` until the pixels actually move, and only then invalidates. Waiting also sidesteps the cost: re-flattening every icon the instant a restyle begins forces a cold IconServices regeneration, measured at 160× the settled draw cost. That drops the cached bitmaps, bumps every cache key so an in-flight decode cannot repopulate a stale one, and moves `IconCache.style.generation`. **Any view that draws an icon must key its fetch on that generation** — wrap the view's own key in `IconRequest`, or call `IconCache.observeStyle()` where the icon is resolved synchronously in a `body`. It is reached through `IconCache` rather than injected precisely because icons are drawn in menus, popovers and every list, where a missed injection would be a silent staleness bug.
 - **No hard dividers between the list and the bars.** The header and bottom bar are `safeAreaInset` overlays with no background; separation comes from `edgeDissolve()`, nothing else. (One deliberate exception: the vertical hairline between a list and its preview pane, as the clipboard and file search screens draw.)
-- **The panel corner is clipped once, at the root.** `RootPaletteView.body` ends with `.background(PaletteBackground(window:)) → .clipShape(RoundedRectangle(26, .continuous))`. `PaletteBackground` puts `panelScrim(transparency:)` over `VisualEffectView()`; the center setting returns the original tint. Keep that order, with the clip last.
+- **The panel corner is clipped once, at the root.** `RootPaletteView.body` ends with `.background(PaletteBackground(window:)) → .clipShape(RoundedRectangle(metrics.radius.panel, .continuous))`. `PaletteBackground` puts `panelScrim(transparency:)` over `VisualEffectView()` — or under one `.glassEffect(.regular)` in the Spotlight dress; the center setting returns the original tint. Keep that order, with the clip last.
 - **Don't use the native scroll edge effect.** Inside a transparent panel it renders a hard-bounded rectangle. Use `edgeDissolve()`, or a gradient `mask` where a surface owns its own fade — `scrollEdgeEffectStyle` draws a *material* where a scroll view meets a safe area, so over a panel that already has `panelScrim` + `VisualEffectView` it composites to nothing. Tried and rejected on `QuickActionResultView`, with and without `safeAreaBar`. This is a rule about the borderless panels; the Settings window is a titled `NSWindow` whose system titlebar draws the band itself (see "Settings").
 - **Test over a light desktop.** Transparency and corner masking bugs only show over bright wallpaper. Dark wallpaper hides them.
 - **No `NSAlert` or system popovers.** Every confirmation, failure report, value prompt and transient readout is Tinycast's own SwiftUI surface (see "Dialogs & HUD"). An Aqua alert on an alpha-over-vibrancy app reads as a different product, and its `runModal` run loop keeps Carbon hotkeys firing underneath.
@@ -49,7 +51,7 @@ These are the things that quietly break the look if changed. Preserve them unles
 - **Resolve every glyph through `SymbolImage`, not `Image(systemName:)`.** Some catalog symbols are bundled assets in `Assets.xcassets` (`toggleBluetooth`), and `Image(systemName:)` silently renders nothing for those.
 - **↵ runs the primary action, Escape cancels, and Cancel always renders leading** (the left button), matching macOS convention. A button never prints its key cap; a deliberate hover reveals its outlined `KeyCapChip` in a `Tooltip`.
 - **A transient readout is a HUD, not a dialog.** `VolumeHUDController`'s box is volume and mute only, since that one needs an actual level and number; every other success or info confirmation goes through `MessageHUDController`'s pill, whose trailing glyph *is* its `DialogTone`. A pill has no subject to name, so the icon rule above does not apply to it — and that mapping stays file-scoped so nothing can reach for it when building a `DialogRequest`. A new HUD means a new presenter, not a second shape bolted onto an existing controller.
-- **Glass is for floating controls, with dialogs as the deliberate modal exception.** The action capsule, menu circle and `PopoverMenu` use it inside the palette; dialogs apply one system `.glassEffect(.regular)` to their root surface. Dialog buttons stay matte so their roles remain legible. Both HUDs keep the lighter `panelScrim` → `VisualEffectView()` → `clipShape` recipe.
+- **Glass is for floating controls, with dialogs and the Spotlight dress as the deliberate exceptions.** The action capsule, menu circle and `PopoverMenu` use it inside the palette; dialogs apply one system `.glassEffect(.regular)` to their root surface, and `AppSettings.paletteStyle == .spotlight` applies the same recipe to the panel itself. Dialog buttons stay matte so their roles remain legible. Both HUDs keep the lighter `panelScrim` → `VisualEffectView()` → `clipShape` recipe.
 
 ---
 
@@ -70,7 +72,8 @@ Support, Update, About and Notes never scale.
 literal, so `Theme` stays the one place a number is written down. **In any view a scaled surface can
 reach, read `@Environment(\.metrics)` rather than `Theme.Spacing/Radius/Size/Typography`** — the key
 defaults to `.standard`, so a shared `DesignSystem/` component renders unscaled in Settings without
-being forked. An AppKit site reads `settings.interfaceSize.metrics` where it computes its frame.
+being forked. An AppKit site reads `settings.metrics` where it computes its frame — the one property
+that pairs the size scale with the launcher style, so nothing can read half of the geometry.
 
 A length measured against the **screen** does not scale; a length measured against **our own content**
 does. So `hairline`, `paletteTopMarginFraction`, `paletteSnapDistance`, `paletteMinimumVisible`, the
@@ -81,13 +84,45 @@ scaled parts (`compactHeight`, `menuRowHeight`) rather than scaling the derived 
 frame can never disagree with the SwiftUI view inside it by a point. `interface-size-test` pins all of
 this, member by member, including that `.standard` is `Theme` verbatim.
 
+### Launcher style (`PaletteStyle`)
+
+`AppSettings.paletteStyle` is the palette's **dress**, the second axis `InterfaceMetrics` resolves —
+Settings → General → Appearance → **Launcher style**. `.tinycast` is everything above; `.spotlight`
+dresses the same panel as the system launcher.
+
+- **A dress moves geometry and the surface material, never the structure.** Same screens, same rows,
+  same floating bars, same keys. It states its literals in `Theme.Spotlight` and nothing else may:
+  a view reads `metrics`, and no view ever asks which style is on. `PaletteBackground` is the sole
+  exception, because the material is the one thing metrics cannot carry.
+- **The tokens a dress may move**, and only these: `size.panelWidth` 750→680, `size.panelHeight`
+  475→440, `radius.panel` 26→30, `size.headerIconSlot` 22→24, `spacing.rowVertical` 6→4,
+  `typography.searchFieldSize` 20→24 and the `headerIcon` glyph 18→20. `palette-style-test` pins each
+  one, that every other token is dress-neutral, and that the dressed value still scales and rounds
+  like any other.
+- **The search row's band is not a dress's to move.** `headerHeight` stays 44 and `headerPadding` 10
+  in both, so `compactHeight` stays 64 and the collapsed bar is one height everywhere. A dress
+  retunes the query inside that band — the 24pt field and its wider glyph slot — and stops there.
+- **The row pitch is the dress's, the tile is not.** `size.rowIcon` stays 24 in both, so an icon reads
+  identically wherever it is drawn; the Spotlight dress tightens only the slack around it, taking the
+  row from 36 to 32. Retune the list's density through `Theme.Spotlight.rowVertical` alone — growing
+  the tile to do it would move the launcher's icons out of step with the menus' and the cards'.
+- **`.spotlight` takes the main surface to glass**: `panelScrim(transparency:)` under one system
+  `.glassEffect(.regular)`, the dialog's own recipe, and it keeps the native window shadow instead of
+  the scrimmed dress's hand-drawn edge highlight. The transparency slider still works, as the scrim
+  is what it moves.
+- **Dialogs, HUDs and the ⌘K menu follow the dress** because they read the same `settings.metrics`:
+  a dialog stays the palette's smaller sibling rather than rounding its corner differently from the
+  panel it sits over.
+
 ### Spacing (`Theme.Spacing`)
 
-`xxs 2` · `xs 4` · `sm 6` · `md 8` · `lg 10` · `xl 12` · `dialogInset 18` · `xxl 20`
+`xxs 2` · `xs 4` · `sm 6` · `md 8` · `lg 10` · `xl 12` · `dialogInset 18` · `xxl 20` ·
+`rowVertical` (`sm`, and the one spacing token a launcher style may move)
 
 `xxs` is the tight gap between adjacent keycap chips (used everywhere keycaps sit side by side).
 
-Row content insets are `md`; list horizontal inset is `md`; the search icon aligns with rows via `md * 2`.
+Row content insets are `md` horizontally and `rowVertical` (`sm`, and 4 in the Spotlight dress)
+vertically; list horizontal inset is `md`; the search icon aligns with rows via `md * 2`.
 
 Section-header rhythm has two dedicated tokens: `sectionHeaderBottom` (header → first row) and
 `sectionSpacing` (gap above every header **except the list's first**, which reads as the previous
@@ -352,7 +387,7 @@ Source: `Launcher/UI/LauncherList.swift`, `Clipboard/UI/ClipboardView.swift`,
 
 All lists share one row grammar so launcher and clipboard look identical:
 
-- `HStack(spacing: lg)`: leading 24pt icon/thumbnail, title (`.body`, `lineLimit(1)`), optional trailing keycaps/kind label, `Spacer`. Insets: `.horizontal md`, `.vertical sm`.
+- `HStack(spacing: lg)`: leading 24pt icon/thumbnail, title (`.body`, `lineLimit(1)`), optional trailing keycaps/kind label, `Spacer`. Insets: `.horizontal md`, `.vertical rowVertical` — one token in all ten lists, so the launcher style retunes the row pitch everywhere at once or nowhere.
 - **The leading slot is always `Theme.Size.rowIcon`, whatever fills it.** A glyph smaller than an app icon — the uninstall list's 16pt checkbox — is centred _inside_ that 24pt slot rather than sizing the slot to itself. Every list then starts its title at the same x, so switching palette modes doesn't jog the column sideways. The slot doubles as the hit target.
 - Background is a `RoundedRectangle(row, .continuous)` filled by `fill`: **selection → hover → clear**, in that precedence. This `fill` computed property is copy-identical across `AppRow`, `ClipboardRow` and `UninstallRow` — keep them in sync. The launcher's lead cards don't restate it: `.leadCard(selected:)` (`Features/Launcher/UI/LeadCard.swift`) owns their fill and hover, so a card can't answer a selection differently from its siblings.
 - **Hover state lives on the row**, not the list, so a mouse sweep repaints only the rows entering/leaving (a list-level hover rebuilds every row per move — don't do that).

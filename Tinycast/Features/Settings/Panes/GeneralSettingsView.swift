@@ -78,6 +78,14 @@ struct GeneralSettingsView: View {
                 } label: {
                     SettingsRowTitle(.generalAppearance, "Theme")
                 }
+                Picker(selection: $settings.paletteStyle) {
+                    ForEach(PaletteStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                } label: {
+                    SettingsRowTitle(.generalAppearance, "Launcher style")
+                    Text("Spotlight dresses the panel as the system launcher.")
+                }
                 InterfaceSizeRow()
                 PaletteTransparencyRow()
                 Toggle(isOn: $settings.compactMode) {

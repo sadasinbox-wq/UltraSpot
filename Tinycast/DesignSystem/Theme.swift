@@ -15,6 +15,8 @@ enum Theme {
         static let xxl: CGFloat = 20
         /// Calculator answer card's roomier vertical breathing room.
         static let xxxl: CGFloat = 28
+        /// A list row's own vertical inset, stated so a dress can retune the row pitch alone.
+        static let rowVertical: CGFloat = sm
         /// Gap under a category header, shared by every palette list's `SectionHeader`.
         static let sectionHeaderBottom: CGFloat = 4
         /// Clearance under the last message, so its actions row belongs to it, not to the footer.
@@ -254,6 +256,22 @@ enum Theme {
         static let volumeReadout: CGFloat = 38
     }
 
+    /// The `.spotlight` dress: every token whose value differs from the one above it.
+    /// Read through `InterfaceMetrics`, never directly — a view states a style nowhere.
+    enum Spotlight {
+        /// Narrower than Tinycast's own, the way the system launcher sits on the desktop.
+        static let panelWidth: CGFloat = 680
+        static let panelHeight: CGFloat = 440
+        /// A rounder corner; system glass carries a larger radius than a scrimmed panel.
+        static let panelRadius: CGFloat = 30
+        /// A wider glyph slot beside the larger query; the search row's own height is unchanged.
+        static let headerIconSlot: CGFloat = 24
+        static let headerIconSize: CGFloat = 20
+        static let searchFieldSize: CGFloat = 24
+        /// The system list is denser: its row is the icon slot in four points of slack, so 32.
+        static let rowVertical: CGFloat = 4
+    }
+
     enum Duration {
         /// How long each HUD stays up; a sentence needs longer than a level does.
         static let messageHUD: TimeInterval = 2.4
@@ -309,7 +327,9 @@ enum Theme {
         /// `NSFont` is not `Sendable`, hence the isolation; every reader is a view anyway.
         @MainActor static let searchFieldNSFont = NSFont.systemFont(
             ofSize: searchFieldSize, weight: .regular)
-        static let headerIcon = Font.system(size: 18, weight: .medium)
+        /// Stated, because the Spotlight dress resizes the glyph beside its larger query.
+        static let headerIconSize: CGFloat = 18
+        static let headerIcon = Font.system(size: headerIconSize, weight: .medium)
         static let rowTitle = Font.body
         static let rowTrailing = Font.callout
         static let sectionHeader = Font.subheadline.weight(.medium)

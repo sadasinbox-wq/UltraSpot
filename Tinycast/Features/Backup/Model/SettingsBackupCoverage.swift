@@ -18,6 +18,7 @@ enum SettingsBackupCoverage {
         "appearance": .appearance,
         "calcNumberStyle": .calcNumberStyle,
         "interfaceSize": .interfaceSize,
+        "paletteStyle": .paletteStyle,
         "paletteTransparency": .paletteTransparency,
         "compactMode": .compactMode,
         "showFavoritesInCompactMode": .showFavoritesInCompactMode,

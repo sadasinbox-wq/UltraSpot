@@ -1,22 +1,28 @@
 import SwiftUI
 
-/// `Theme`'s palette geometry at the user's Interface Size; `.standard` is `Theme` verbatim.
+/// `Theme`'s palette geometry at the user's size and dress; `.standard` is `Theme` verbatim.
 struct InterfaceMetrics: Equatable, Sendable {
     static let standard = InterfaceMetrics(scale: 1)
 
     let scale: CGFloat
+    /// The dress every style-dependent token below resolves against.
+    var style: PaletteStyle = .tinycast
 
-    var spacing: Spacing { Spacing(scale: scale) }
-    var radius: Radius { Radius(scale: scale) }
-    var size: Size { Size(scale: scale) }
-    var typography: Typography { Typography(scale: scale) }
+    var spacing: Spacing { Spacing(scale: scale, style: style) }
+    var radius: Radius { Radius(scale: scale, style: style) }
+    var size: Size { Size(scale: scale, style: style) }
+    var typography: Typography { Typography(scale: scale, style: style) }
 
     /// For a tuned length a surface owns itself, where `Theme` states no token for it.
     func scaled(_ value: CGFloat) -> CGFloat { scaledPoints(value, scale) }
 
     struct Spacing: Equatable, Sendable {
         let scale: CGFloat
+        var style: PaletteStyle = .tinycast
 
+        var rowVertical: CGFloat {
+            dressed(Theme.Spacing.rowVertical, Theme.Spotlight.rowVertical, style, scale)
+        }
         var xxs: CGFloat { scaledPoints(Theme.Spacing.xxs, scale) }
         var xs: CGFloat { scaledPoints(Theme.Spacing.xs, scale) }
         var sm: CGFloat { scaledPoints(Theme.Spacing.sm, scale) }
@@ -35,8 +41,9 @@ struct InterfaceMetrics: Equatable, Sendable {
 
     struct Radius: Equatable, Sendable {
         let scale: CGFloat
+        var style: PaletteStyle = .tinycast
 
-        var panel: CGFloat { scaledPoints(Theme.Radius.panel, scale) }
+        var panel: CGFloat { dressed(Theme.Radius.panel, Theme.Spotlight.panelRadius, style, scale) }
         var row: CGFloat { scaledPoints(Theme.Radius.row, scale) }
         var emojiCell: CGFloat { scaledPoints(Theme.Radius.emojiCell, scale) }
         var menu: CGFloat { scaledPoints(Theme.Radius.menu, scale) }
@@ -55,11 +62,16 @@ struct InterfaceMetrics: Equatable, Sendable {
 
     struct Size: Equatable, Sendable {
         let scale: CGFloat
+        var style: PaletteStyle = .tinycast
 
-        var panelWidth: CGFloat { scaledPoints(Theme.Size.panelWidth, scale) }
-        var panelHeight: CGFloat { scaledPoints(Theme.Size.panelHeight, scale) }
+        var panelWidth: CGFloat { dressed(Theme.Size.panelWidth, Theme.Spotlight.panelWidth, style, scale) }
+        var panelHeight: CGFloat {
+            dressed(Theme.Size.panelHeight, Theme.Spotlight.panelHeight, style, scale)
+        }
         var headerHeight: CGFloat { scaledPoints(Theme.Size.headerHeight, scale) }
-        var headerIconSlot: CGFloat { scaledPoints(Theme.Size.headerIconSlot, scale) }
+        var headerIconSlot: CGFloat {
+            dressed(Theme.Size.headerIconSlot, Theme.Spotlight.headerIconSlot, style, scale)
+        }
         var headerPadding: CGFloat { scaledPoints(Theme.Size.headerPadding, scale) }
         /// Derived, not scaled: the compact bar must stay exactly the header in symmetric slack.
         var compactHeight: CGFloat { headerHeight + headerPadding * 2 }
@@ -132,23 +144,29 @@ struct InterfaceMetrics: Equatable, Sendable {
     /// `NSFont` is the only public source of a text style's size and face.
     struct Typography: Sendable {
         let scale: CGFloat
+        var style: PaletteStyle = .tinycast
 
-        var searchFieldSize: CGFloat { scaledPoints(Theme.Typography.searchFieldSize, scale) }
+        var searchFieldSize: CGFloat {
+            dressed(
+                Theme.Typography.searchFieldSize, Theme.Spotlight.searchFieldSize, style, scale)
+        }
         var searchField: Font {
-            scale == 1
+            searchFieldSize == Theme.Typography.searchFieldSize
                 ? Theme.Typography.searchField
                 : .system(size: searchFieldSize, weight: .regular)
         }
         /// Isolated because `Theme`'s twin is, not because resolving a font needs main.
         @MainActor var searchFieldNSFont: NSFont {
-            scale == 1
+            searchFieldSize == Theme.Typography.searchFieldSize
                 ? Theme.Typography.searchFieldNSFont
                 : NSFont.systemFont(ofSize: searchFieldSize, weight: .regular)
         }
         var headerIcon: Font {
-            scale == 1
+            let size = dressed(
+                Theme.Typography.headerIconSize, Theme.Spotlight.headerIconSize, style, scale)
+            return size == Theme.Typography.headerIconSize
                 ? Theme.Typography.headerIcon
-                : .system(size: scaledPoints(18, scale), weight: .medium)
+                : .system(size: size, weight: .medium)
         }
 
         var rowTitle: Font { font(Theme.Typography.rowTitle, .body) }
@@ -199,6 +217,13 @@ struct InterfaceMetrics: Equatable, Sendable {
 /// Whole points: a fractional row pitch lands keycap edges and the dissolve mask off-pixel.
 private func scaledPoints(_ value: CGFloat, _ scale: CGFloat) -> CGFloat {
     scale == 1 ? value : (value * scale).rounded()
+}
+
+/// The dress picks the literal, the size scales it — so a styled token still rounds once.
+private func dressed(
+    _ tinycast: CGFloat, _ spotlight: CGFloat, _ style: PaletteStyle, _ scale: CGFloat
+) -> CGFloat {
+    scaledPoints(style == .spotlight ? spotlight : tinycast, scale)
 }
 
 extension EnvironmentValues {

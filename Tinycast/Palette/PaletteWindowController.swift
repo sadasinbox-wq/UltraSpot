@@ -386,7 +386,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
     }
 
     /// A new width invalidates the placement the cached anchor encoded, so re-resolve it.
-    func applyInterfaceSize() {
+    func applyPaletteGeometry() {
         guard let panel else { return }
         anchor = nil
         positionPanel(panel, collapsed: core.paletteCoordinator.paletteIsCollapsed)
@@ -432,7 +432,7 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
             topMarginFraction: Theme.Size.paletteTopMarginFraction)
     }
 
-    private var metrics: InterfaceMetrics { core.settings.interfaceSize.metrics }
+    private var metrics: InterfaceMetrics { core.settings.metrics }
 }
 
 extension NSScreen {

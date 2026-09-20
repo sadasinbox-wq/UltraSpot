@@ -72,6 +72,11 @@ feature's doc, under its own `## Invariants`.
   the forced-dark build shipped, restated rather than re-derived. Retune a light branch freely — change
   a dark one only when the task is to change Dark. `AppAppearance` drives `NSApp.appearance`, and
   `.system` maps to `nil` so AppKit follows macOS on its own.
+- **A launcher style is geometry and material, never structure.** `AppSettings.paletteStyle` picks the
+  dress `InterfaceMetrics` resolves; `.spotlight` states its literals in `Theme.Spotlight` and takes the
+  panel to system glass, and that is the one place the "glass only on floating controls" rule yields.
+  Views read `settings.metrics` and never ask which style is on — `PaletteBackground` alone branches on
+  it, because material is the one thing metrics cannot carry. Same screens, rows, bars and keys in both.
 - **Tinycast presents its own dialogs — never `NSAlert` or a system popover.** A question
   goes through `DialogController`, a report through a HUD via `HUDPresenter`.
 - **A networked feature fetches on a private `.ephemeral`, `urlCache = nil` session**, never

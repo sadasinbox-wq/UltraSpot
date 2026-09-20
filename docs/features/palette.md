@@ -68,6 +68,16 @@ the content.
 The existing window reader supplies the panel to `PaletteBackground`; appearance and transparency
 changes update its shadow. The center keeps the original shadow and adds no border.
 
+## Launcher style
+
+General settings' **Launcher style** picks the dress the panel wears: `.tinycast`, everything
+described here, or `.spotlight`, the same panel at the system launcher's proportions on one
+`.glassEffect(.regular)` surface. Only `PaletteBackground` reads the style — every other view reads
+the dressed numbers through `settings.metrics`, so a screen cannot grow a second layout. The
+transparency slider still moves the scrim under the glass, and the glass dress keeps the native
+window shadow rather than the hand-drawn border above. See
+[ui.md](../ui.md#launcher-style-palettestyle) for the tokens each dress states.
+
 ## Screens
 
 `PaletteState` (mode / query / selection / `focusToken`) is the bridge between the panel and the app.
@@ -234,8 +244,9 @@ All of the arithmetic lives in `PalettePlacement`, which is CoreGraphics-only an
 fact as a parameter, so `palette-placement-test` drives the shipped rules rather than a copy of them.
 
 The panel's width and height are not constants: they come from `InterfaceMetrics`, so Interface Size
-changes them. A change re-enters through `AppCore.track` → `applyInterfaceSize()`, which **drops the
-cached anchor** and re-resolves it — one rule, the summon's. An untouched palette re-centres at the new
+and Launcher style both change them. Either change re-enters through `AppCore.track` →
+`applyPaletteGeometry()`, which **drops the cached anchor** and re-resolves it — one rule, the
+summon's. An untouched palette re-centres at the new
 width; a dragged one keeps its stored top-left unless the wider bar no longer leaves
 `paletteMinimumVisible` on the display it opens on, in which case it falls home.
 
